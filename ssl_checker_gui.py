@@ -84,6 +84,7 @@ class SSLCheckerGUI(QMainWindow):
             'valid': [],
             'invalid': []
         }
+        self.setWindowIcon(QIcon('./src/icon.png'))
         self.init_ui()
         
     def init_ui(self):
@@ -125,27 +126,6 @@ class SSLCheckerGUI(QMainWindow):
         """Configura la pestaña de verificación."""
         layout = QVBoxLayout(self.check_tab)
         
-        # Grupo de configuración
-        # config_group = QGroupBox("Configuración")
-        # config_layout = QHBoxLayout(config_group)
-        
-        # Timeout
-        # config_layout.addWidget(QLabel("Timeout (s):"))
-        # self.timeout_spin = QSpinBox()
-        # self.timeout_spin.setRange(1, 60)
-        # self.timeout_spin.setValue(10)
-        # config_layout.addWidget(self.timeout_spin)
-        
-        # Workers
-        # config_layout.addWidget(QLabel("Workers:"))
-        # self.workers_spin = QSpinBox()
-        # self.workers_spin.setRange(1, 50)
-        # self.workers_spin.setValue(10)
-        # config_layout.addWidget(self.workers_spin)
-        
-        # config_layout.addStretch()
-        # layout.addWidget(config_group)
-        
         # Área de URLs
         urls_group = QGroupBox("URLs a verificar")
         urls_layout = QVBoxLayout(urls_group)
@@ -157,11 +137,16 @@ class SSLCheckerGUI(QMainWindow):
         self.load_btn.clicked.connect(self.load_file)
         file_layout.addWidget(self.load_btn)
         
+        self.export_btn = QPushButton("Exportar Reporte")
+        self.export_btn.clicked.connect(self.export_report)
+        file_layout.addWidget(self.export_btn)
+ 
         self.clear_btn = QPushButton("Limpiar")
         self.clear_btn.clicked.connect(self.clear_urls)
         file_layout.addWidget(self.clear_btn)
 
-        
+
+
         file_layout.addStretch()
         urls_layout.addLayout(file_layout)
         
@@ -219,12 +204,7 @@ class SSLCheckerGUI(QMainWindow):
                 background-color: #cccccc;
             }
         """)
-        controls_layout.addWidget(self.stop_btn)
-        
-        self.export_btn = QPushButton("Exportar Reporte")
-        self.export_btn.clicked.connect(self.export_report)
-        controls_layout.addWidget(self.export_btn)
-        
+        controls_layout.addWidget(self.stop_btn)       
         layout.addLayout(controls_layout)
         
         # Progreso
