@@ -11,9 +11,12 @@ import socket
 import argparse
 import sys
 from urllib.parse import urlparse
-from datetime import datetime
+from datetime import datetime, timezone
 import concurrent.futures
 from typing import Tuple, Optional
+import re
+from dateutil import parser
+import pandas as pd
 
 class SSLCertChecker:
     def __init__(self, timeout: int = 10):
@@ -39,7 +42,17 @@ class SSLCertChecker:
         if ':' in hostname:
             hostname = hostname.split(':')[0]
         return hostname
-    
+
+    def get_ip_address(self, hostname: str) -> str:
+        """Obtiene la dirección IP local del hostname."""
+        try:
+            ip = socket.gethostbyname(hostname)
+            return ip
+        except socket.gaierror:
+            return "No resuelve"
+        except Exception:
+            return "Error"
+
     def check_certificate(self, hostname: str, port: int = 443) -> Tuple[bool, Optional[str], Optional[dict]]:
         """
         Verifica el certificado SSL de un hostname.
@@ -53,8 +66,9 @@ class SSLCertChecker:
                     cert = ssock.getpeercert()
                     
                     # Verificar fecha de expiración
-                    not_after = datetime.strptime(cert['notAfter'], '%b %d %H:%M:%S %Y %Z')
-                    days_until_expiry = (not_after - datetime.now()).days
+                    not_after = parser.parse(re.sub(r'\s+', ' ',cert['notAfter']))
+                    
+                    days_until_expiry = (not_after - datetime.now(timezone.utc)).days
                     
                     cert_info = {
                         'subject': dict(x[0] for x in cert['subject']),
@@ -76,6 +90,15 @@ class SSLCertChecker:
             return False, "No se pudo resolver el nombre de dominio", None
         except ConnectionRefusedError:
             return False, "Conexión rechazada", None
+        except OSError as e:
+            if e.errno == 113:
+                return False, f"No hay ruta hasta el host '{hostname}'. Verifique conectividad de red.", None
+            elif e.errno == 101:  
+                return False, f"Red no accesible para '{hostname}'.", None
+            elif e.errno == 111:
+                return False, "Conexión rechazada", None
+            else:
+                return False, f"Error de red ({e.errno}): {str(e)}", None
         except Exception as e:
             return False, f"Error inesperado: {str(e)}", None
     
@@ -84,6 +107,7 @@ class SSLCertChecker:
         original_url = url.strip()
         url = self.clean_url(url)
         hostname = self.get_hostname(url)
+        ip_address = self.get_ip_address(hostname)
         
         print(f"Verificando: {hostname}...", end=" ")
         
@@ -127,50 +151,35 @@ class SSLCertChecker:
                     self.results['invalid'].append(result)
     
     def generate_report(self, output_file: Optional[str] = None):
-        """Genera y muestra el reporte final."""
-        report_lines = []
-        report_lines.append("=" * 80)
-        report_lines.append("REPORTE DE VERIFICACIÓN DE CERTIFICADOS SSL")
-        report_lines.append("=" * 80)
-        report_lines.append(f"Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        report_lines.append(f"Total URLs procesadas: {len(self.results['valid']) + len(self.results['invalid'])}")
-        report_lines.append(f"Con certificado válido: {len(self.results['valid'])}")
-        report_lines.append(f"Sin certificado o con errores: {len(self.results['invalid'])}")
-        report_lines.append("")
+        """Genera un reporte en Excel con las columnas requeridas."""
+        rows = []
         
-        # Sitios con certificado válido
-        if self.results['valid']:
-            report_lines.append("-" * 80)
-            report_lines.append("SITIOS CON CERTIFICADO SSL VÁLIDO:")
-            report_lines.append("-" * 80)
-            for site in self.results['valid']:
-                cert_info = site['cert_info']
-                report_lines.append(f"✓ {site['url']}")
-                report_lines.append(f"  Hostname: {site['hostname']}")
-                report_lines.append(f"  Emitido por: {cert_info['issuer'].get('organizationName', 'Desconocido')}")
-                report_lines.append(f"  Expira: {cert_info['notAfter']} ({cert_info['days_until_expiry']} días)")
-                report_lines.append("")
+        # Procesar sitios con certificado válido
+        for site in self.results['valid']:
+            cert_info = site['cert_info']
+            rows.append({
+                'Dirección correcto (URL)': site['url'],
+                'Dirección de IP Local': site.get('ip', 'No resuelve'),
+                'TIENE CERTIFICADO': 'X',
+                'FECHA DE VENCIMIENTO': cert_info['notAfter'],
+                'ENTIDAD CERTIFICADORA': cert_info['issuer'].get('organizationName', 'Desconocido')
+            })
         
-        # Sitios sin certificado
-        if self.results['invalid']:
-            report_lines.append("-" * 80)
-            report_lines.append("SITIOS SIN CERTIFICADO SSL VÁLIDO:")
-            report_lines.append("-" * 80)
-            for site in self.results['invalid']:
-                report_lines.append(f"✗ {site['url']}")
-                report_lines.append(f"  Hostname: {site['hostname']}")
-                report_lines.append(f"  Error: {site['error']}")
-                report_lines.append("")
+        # Procesar sitios sin certificado o con error
+        for site in self.results['invalid']:
+            rows.append({
+                'Dirección correcto (URL)': site['url'],
+                'Dirección de IP Local': site.get('ip', 'No resuelve'),
+                'TIENE CERTIFICADO': '',
+                'FECHA DE VENCIMIENTO': '',
+                'ENTIDAD CERTIFICADORA': ''
+            })
         
-        report_lines.append("=" * 80)
-        
-        report = "\n".join(report_lines)
-        print(report)
-        
-        if output_file:
-            with open(output_file, 'w', encoding='utf-8') as f:
-                f.write(report)
-            print(f"\nReporte guardado en: {output_file}")
+        # Crear DataFrame y guardar a Excel
+        df = pd.DataFrame(rows)
+        df.to_excel(output_file, index=False, sheet_name='Certificados SSL')
+        print(f"\nReporte Excel guardado en: {output_file}")
+
 
 def main():
     parser = argparse.ArgumentParser(

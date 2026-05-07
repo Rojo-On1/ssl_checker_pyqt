@@ -200,9 +200,6 @@ class SSLCheckerGUI(QMainWindow):
             QPushButton:hover {
                 background-color: #da190b;
             }
-            QPushButton:disabled {
-                background-color: #cccccc;
-            }
         """)
         controls_layout.addWidget(self.stop_btn)       
         layout.addLayout(controls_layout)
@@ -499,8 +496,8 @@ class SSLCheckerGUI(QMainWindow):
         file_path, _ = QFileDialog.getSaveFileName(
             self,
             "Guardar reporte",
-            f"reporte_ssl_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-            "Archivos de texto (*.txt);;Todos los archivos (*)"
+            f"reporte_ssl_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+            "Archivos de texto (*.xlsx);;Todos los archivos (*)"
         )
         
         if file_path:
