@@ -11,9 +11,11 @@ import socket
 import argparse
 import sys
 from urllib.parse import urlparse
-from datetime import datetime
+from datetime import datetime, timezone
 import concurrent.futures
 from typing import Tuple, Optional
+import re
+from dateutil import parser
 
 class SSLCertChecker:
     def __init__(self, timeout: int = 10):
@@ -53,8 +55,9 @@ class SSLCertChecker:
                     cert = ssock.getpeercert()
                     
                     # Verificar fecha de expiración
-                    not_after = datetime.strptime(cert['notAfter'], '%b %d %H:%M:%S %Y %Z')
-                    days_until_expiry = (not_after - datetime.now()).days
+                    not_after = parser.parse(re.sub(r'\s+', ' ',cert['notAfter']))
+                    
+                    days_until_expiry = (not_after - datetime.now(timezone.utc)).days
                     
                     cert_info = {
                         'subject': dict(x[0] for x in cert['subject']),
@@ -76,6 +79,15 @@ class SSLCertChecker:
             return False, "No se pudo resolver el nombre de dominio", None
         except ConnectionRefusedError:
             return False, "Conexión rechazada", None
+        except OSError as e:
+            if e.errno == 113:
+                return False, f"No hay ruta hasta el host '{hostname}'. Verifique conectividad de red.", None
+            elif e.errno == 101:  
+                return False, f"Red no accesible para '{hostname}'.", None
+            elif e.errno == 111:
+                return False, "Conexión rechazada", None
+            else:
+                return False, f"Error de red ({e.errno}): {str(e)}", None
         except Exception as e:
             return False, f"Error inesperado: {str(e)}", None
     
