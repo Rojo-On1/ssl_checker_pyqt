@@ -1,3 +1,5 @@
 PyQt6==6.11.0
 PyQt6-Qt6==6.11.0
 PyQt6_sip==13.11.1
+python-dateutil==2.9.0.post0
+six==1.17.0
