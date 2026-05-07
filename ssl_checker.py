@@ -120,6 +120,7 @@ class SSLCertChecker:
             return {
                 'url': original_url,
                 'hostname': hostname,
+                'ip': ip_address,
                 'status': 'valid',
                 'cert_info': cert_info
             }
@@ -134,6 +135,7 @@ class SSLCertChecker:
             return {
                 'url': original_url,
                 'hostname': hostname,
+                'ip':ip_address,
                 'status': 'invalid',
                 'error': error
             }
