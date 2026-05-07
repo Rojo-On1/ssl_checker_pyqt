@@ -36,7 +36,7 @@ class SSLCheckWorker(QThread):
     
     def __init__(self, urls: List[str], timeout: int = 10, max_workers: int = 10):
         super().__init__()
-        self.urls = urls
+        self.urls = set(urls)
         self.timeout = timeout
         self.max_workers = max_workers
         self.signals = WorkerSignals()
