@@ -200,9 +200,6 @@ class SSLCheckerGUI(QMainWindow):
             QPushButton:hover {
                 background-color: #da190b;
             }
-            QPushButton:disabled {
-                background-color: #cccccc;
-            }
         """)
         controls_layout.addWidget(self.stop_btn)       
         layout.addLayout(controls_layout)
